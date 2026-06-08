@@ -1,0 +1,131 @@
+# ==============================================================================
+# Docker Compose for local development
+# Orchestrates: Django, Next.js, PostgreSQL, Redis, Qdrant, Celery Worker/Beat
+# ==============================================================================
+
+version: "3.9"
+
+services:
+  # ---------- PostgreSQL ----------
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: upsc_blog
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------- Redis ----------
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------- Qdrant Vector Store ----------
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------- Django Backend ----------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput 2>/dev/null;
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --reload"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env.example
+    environment:
+      - DJANGO_DEBUG=True
+      - DB_HOST=postgres
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - QDRANT_HOST=qdrant
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+
+  # ---------- Celery Worker ----------
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A config.celery worker -l info -c 2
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env.example
+    environment:
+      - DB_HOST=postgres
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - QDRANT_HOST=qdrant
+    depends_on:
+      - backend
+
+  # ---------- Celery Beat ----------
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A config.celery beat -l info
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env.example
+    environment:
+      - DB_HOST=postgres
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      - backend
+
+  # ---------- Next.js Frontend ----------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  qdrant_data:

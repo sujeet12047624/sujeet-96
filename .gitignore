@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+venv/
+.venv/
+env/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+*.pot
+*.pyc
+
+# Environment
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.nuxt/
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+docker-compose.override.yml
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+
+# Misc
+*.bak
+*.tmp
+*.temp
