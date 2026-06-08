@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { blogService } from "@/services/blog";
@@ -13,7 +13,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   editorial: "Editorial Analysis",
 };
 
-export default function BlogListPage() {
+function BlogListContent() {
   const searchParams = useSearchParams();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,5 +116,13 @@ export default function BlogListPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function BlogListPage() {
+  return (
+    <Suspense fallback={<div className="max-w-7xl mx-auto px-4 py-12 text-center">Loading...</div>}>
+      <BlogListContent />
+    </Suspense>
   );
 }
